@@ -223,7 +223,6 @@ def solveCNF(ilpMatrix):
     # now obtain the second clause by finding a hitting set with the remaining tags
             
     # empty tag frequency dictionary for new hitting set once dataitems removed
-    
     for i in range(numTags):
         frequencies["t" + str(i+1)] = 0
             
@@ -241,7 +240,7 @@ def solveCNF(ilpMatrix):
     # find the disjunctive hitting set that will be the second clause of the CNF descriptor
     clause2 = findDisjunctive(B, frequencies)
             
-    return str(clause1) + " and " + str(clause2)
+    return (clause1, clause2)
     
 
 """
@@ -414,8 +413,6 @@ def hitting_set_ilp(ilpMatrix):
 
 
 
-        
-
 def executionTimes(descriptorType, numTests, numD, numT):
     """
     A function that finds the time it takes to solve the minimum hitting set problem with the specified descriptor type 
@@ -461,25 +458,157 @@ def plotTimes(descriptorType, numTags, minNumPoints, maxNumPoints, increment, nu
         exec_times.append(time)
 
 
-    plt.plot(numDatapoints, exec_times)
-    plt.title("Algorithm Execution Times")
+    plt.plot(numDatapoints, exec_times, "bo")
+    plt.title("Algorithm Processing Times")
     plt.xlabel("Number of Datapoints")
-    plt.ylabel("Execution Time (ms)")
+    plt.ylabel("Processing Time (ms)")
+    plt.show()
+
+def plotAllTimes(numTags, minNumPoints, maxNumPoints, increment, numTests):
+    """
+    A function that plots the execution times against the number of datapoints for solving the hitting set problem using the disjunctive heuristic, disjunctive exact, and Conjunctive Normal Form (CNF)
+    descriptors.
+    :param numTags: int : the number of tags per datapoints for the synthetic datasets to be generated 
+    :param minNumPoints: int : the minumum number of datapoints for the sythetic datasets which will be solved according to the specified (descriptorType) hitting set solver
+    :param maxNumPoints: int : the maximum number of datapoints for the sythetic datasets which will be solved according to the specified (descriptorType) hitting set solver
+    :param increment: int : the increment at which the the execution times will be calculated and plotted for datapoint values between minNumPoints and maxNumPoints 
+    :param numTests: int :  the number of tests to be run per datapoint by the timeit function
+    :return: none
+    """
+    numDatapoints = np.arange(minNumPoints, maxNumPoints, increment)
+    exec_times_dh = []
+    exec_times_de = []
+    exec_times_cnf = []
+
+    for num in numDatapoints:
+        timeDisJuncHeuristic = executionTimes(descriptorType="disjunctive heuristic", numD=num, numT=numTags, numTests=numTests)
+        timeDisjuncExact = executionTimes(descriptorType="disjunctive exact", numD=num, numT=numTags, numTests=numTests)
+        timeCNF = executionTimes(descriptorType="CNF", numD=num, numT=numTags, numTests=numTests)
+        exec_times_dh.append(timeDisJuncHeuristic)
+        exec_times_de.append(timeDisjuncExact)
+        exec_times_cnf.append(timeCNF)
+
+
+    fig, ax = plt.subplots(figsize=(10,4))
+    ax.plot(numDatapoints, exec_times_dh, ".", numDatapoints, exec_times_de, ".", numDatapoints, exec_times_cnf, ".")
+    plt.title("Algorithm Processing Times")
+    plt.xlabel("Number of Datapoints")
+    plt.ylabel("Processing Time (ms)")
+    plt.legend(["Disjunctive Heuristic", "Disjuctive Exact", "CNF"])
     plt.show()
 
 
+def plotSizes(descriptorType, numTags, minNumPoints, maxNumPoints, increment):
+    """
+    A function that plots the hitting set size against the number of datapoints for solving the hitting set problem using either the disjunctive heuristic, disjunctive exact, or Conjunctive Normal Form (CNF)
+    descriptors.
+    :param descriptorType: String : a String specifiying the type of minimum hitting set solver algorithm to be run: either, "disjunctive heuristic", "disjunctive exact", or "CNF"
+    :param numTags: int : the number of tags per datapoints for the synthetic datasets to be generated 
+    :param minNumPoints: int : the minumum number of datapoints for the sythetic datasets which will be solved according to the specified (descriptorType) hitting set solver
+    :param maxNumPoints: int : the maximum number of datapoints for the sythetic datasets which will be solved according to the specified (descriptorType) hitting set solver
+    :param increment: int : the increment at which the the size will be calculated and plotted for datapoint values between minNumPoints and maxNumPoints 
+    :return: none
+    """
+    numDatapoints = np.arange(minNumPoints, maxNumPoints, increment)
+    sizes = []
+    sizesLeft = []
+    sizesRight = []
+    if descriptorType == "disjunctive heuristic":
+        for num in numDatapoints:
+            ilpmatrix = makeILPMatrix(numDataPoints=num, numTags=numTags)
+            size = len(solveDisjunctive(ilpmatrix))
+            sizes.append(size)
+        plt.plot(numDatapoints, sizes, "bo")
+        plt.title("Disjunctive Heuristic Algorithm Hitting Set Size")
+        plt.xlabel("Number of Datapoints")
+        plt.ylabel("Hitting Set Size")
+        plt.show()
+    elif descriptorType == "disjunctive exact":
+        for num in numDatapoints:
+            ilpmatrix = makeILPMatrix(numDataPoints=num, numTags=numTags)
+            size = len(hitting_set_ilp(ilpmatrix))
+            sizes.append(size)
+        plt.plot(numDatapoints, sizes, "bo")
+        plt.title("Disjunctive Exact Algorithm Hitting Set Size")
+        plt.xlabel("Number of Datapoints")
+        plt.ylabel("Hitting Set Size")
+        plt.show()
+
+    elif descriptorType == "CNF":
+        for num in numDatapoints:
+            ilpmatrix = makeILPMatrix(numDataPoints=num, numTags=numTags)
+            sizeleft = len(solveCNF(ilpmatrix)[0])
+            sizeRight = len(solveCNF(ilpmatrix)[1])
+            sizesLeft.append(sizeleft)
+            sizesRight.append(sizeRight)
+        fig, ax = plt.subplots(figsize=(10,4))
+        ax.plot(numDatapoints, sizesLeft, ".", numDatapoints, sizesRight, ".")
+        plt.title("CNF Algorithm Hitting Set Size")
+        plt.xlabel("Number of Datapoints")
+        plt.ylabel("Hitting Set Size")
+        plt.legend(["Left Clause", "Right Clause"])
+        plt.show()
+
+def plotAllDisjuncSizes(numTags, minNumPoints, maxNumPoints, increment):
+    """
+    A function that plots the hitting set size against the number of datapoints for solving the hitting set problem using the disjunctive heuristic, disjunctive exact, and Conjunctive Normal Form (CNF)
+    descriptors.
+    :param numTags: int : the number of tags per datapoints for the synthetic datasets to be generated 
+    :param minNumPoints: int : the minumum number of datapoints for the sythetic datasets which will be solved according to the specified (descriptorType) hitting set solver
+    :param maxNumPoints: int : the maximum number of datapoints for the sythetic datasets which will be solved according to the specified (descriptorType) hitting set solver
+    :param increment: int : the increment at which the the size will be calculated and plotted for datapoint values between minNumPoints and maxNumPoints 
+    :return: none
+    """
+    numDatapoints = np.arange(minNumPoints, maxNumPoints, increment)
+    sizes_dh = []
+    sizes_de = []
+
+    for num in numDatapoints:
+        ilpmatrix = makeILPMatrix(numDataPoints=num, numTags=numTags)
+        size_dh = len(solveDisjunctive(ilpmatrix))
+        size_de = len(hitting_set_ilp(ilpmatrix))
+        sizes_dh.append(size_dh)
+        sizes_de.append(size_de)
+
+    fig, ax = plt.subplots(figsize=(10,4))
+    ax.plot(numDatapoints, sizes_dh, ".", numDatapoints, sizes_de, ".")
+    plt.title("Algorithm Hitting Set Sizes")
+    plt.xlabel("Number of Datapoints")
+    plt.ylabel("Hitting Set Size")
+    plt.legend(["Disjunctive Heuristic", "Disjuctive Exact"])
+    plt.show()
 
 
-# SAMPLE PLOTS
+# SAMPLE TIME PLOTS
 # below are sample plots generated by runnning the hitting set ilp solver with the three different solver functions for sythetic datasets with 7 tags.
 # These plots run the specified solver method numTests times for each dataset with the number of datapoints between minNumPoints and maxNumPoints incrementing by increment
 # These synthetic datasets are composed according to the ilp matrix format with the number of datapoints increasing between minNumPoints and maxNumPoints at increments of (increment) and randomly generated tag values (0 or 1).  
 
 # disjunctive approximation solver (using heuristic algorithm) 
-# plotTimes(descriptorType="disjunctive heuristic", numTags=7, minNumPoints=10, maxNumPoints=1000, increment=5, numTests=10)
+#plotTimes(descriptorType="disjunctive heuristic", numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50, numTests=20)
 
-# dijunctive exact solver (using gurobi optimization)
-# plotTimes(descriptorType="disjunctive exact", numTags=7, minNumPoints=10, maxNumPoints=1000, increment=5, numTests=10)
+# disjunctive exact solver (using gurobi optimization)
+#plotTimes(descriptorType="disjunctive exact", numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50, numTests=20)
 
 # CNF solver (using heuristic heuristic algorithm)
-# plotTimes(descriptorType="CNF", numTags=7, minNumPoints=10, maxNumPoints=1000, increment=5, numTests=10)
+#plotTimes(descriptorType="CNF", numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50, numTests=20)
+
+# plot all three descriptor types on the same graph
+#plotAllTimes(numTags=7, minNumPoints=10, maxNumPoints=1000, increment=50, numTests=20)
+
+# SAMPLE SIZE PLOTS
+# below are sample plots generated by runnning the hitting set ilp solver with the three different solver functions for sythetic datasets with 7 tags.
+# These plots run the specified solver method numTests times for each dataset with the number of datapoints between minNumPoints and maxNumPoints incrementing by increment
+# These synthetic datasets are composed according to the ilp matrix format with the number of datapoints increasing between minNumPoints and maxNumPoints at increments of (increment) and randomly generated tag values (0 or 1). 
+
+# disjunctive approximation solver (using heuristic algorithm) 
+#plotSizes(descriptorType="disjunctive heuristic", numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50)
+
+# disjunctive exact solver (using gurobi optimization)
+#plotSizes(descriptorType="disjunctive exact", numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50)
+
+# CNF solver (using heuristic heuristic algorithm)
+#plotSizes(descriptorType="CNF", numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50)
+
+# plot all three descriptor types on the same graph
+#plotAllDisjuncSizes(numTags=7, minNumPoints=10, maxNumPoints=100000, increment=50)
